@@ -1,38 +1,67 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, filter, take, switchMap } from 'rxjs/operators';
-import { AuthService } from '../services/auth.service';
+import { Observable, throwError, from } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
+import { KeycloakService } from 'keycloak-angular';
 
-let isRefreshing = false;
-const refreshTokenSubject = new BehaviorSubject<string | null>(null);
+// Log immédiat pour vérifier que l'intercepteur est chargé
+console.log('🔐 AUTH INTERCEPTOR LOADED (Keycloak version)');
 
 /**
- * Intercepteur HTTP pour ajouter le token d'authentification
- * et gérer le rafraîchissement automatique
+ * Intercepteur HTTP pour ajouter le token d'authentification Keycloak
  */
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
-  const authService = inject(AuthService);
+  const keycloakService = inject(KeycloakService);
 
-  // Ne pas intercepter les requêtes d'authentification
+  // Ne pas intercepter les requêtes d'authentification Keycloak
   if (isAuthRequest(req.url)) {
+    console.log('🔐 Skipping auth request:', req.url);
     return next(req);
   }
 
-  // Ajouter le token si disponible
-  const token = authService.getAccessToken();
-  if (token) {
-    req = addTokenToRequest(req, token);
-  }
-
-  return next(req).pipe(
+  // Récupérer le token depuis Keycloak
+  return from(keycloakService.getToken()).pipe(
+    switchMap(token => {
+      console.log('🔐 Token exists:', !!token, 'URL:', req.url);
+      
+      if (token) {
+        const clonedReq = req.clone({
+          setHeaders: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        console.log('🔐 Authorization header added');
+        return next(clonedReq);
+      } else {
+        console.warn('🔐 ⚠️ NO TOKEN - Request without auth');
+        return next(req);
+      }
+    }),
     catchError((error: HttpErrorResponse) => {
-      // Gérer les erreurs 401 (non autorisé)
-      if (error.status === 401 && !isAuthRequest(req.url)) {
-        return handle401Error(req, next, authService);
+      console.log('🔐 Error', error.status, 'for', req.url);
+      
+      // Si 401, essayer de rafraîchir le token
+      if (error.status === 401) {
+        return from(keycloakService.updateToken(30)).pipe(
+          switchMap(() => from(keycloakService.getToken())),
+          switchMap(newToken => {
+            if (newToken) {
+              const retryReq = req.clone({
+                setHeaders: { Authorization: `Bearer ${newToken}` }
+              });
+              return next(retryReq);
+            }
+            return throwError(() => error);
+          }),
+          catchError(() => {
+            console.log('🔐 Token refresh failed, redirecting to login');
+            keycloakService.login();
+            return throwError(() => error);
+          })
+        );
       }
 
       return throwError(() => error);
@@ -44,61 +73,6 @@ export const authInterceptor: HttpInterceptorFn = (
  * Vérifie si la requête est une requête d'authentification
  */
 function isAuthRequest(url: string): boolean {
-  const authEndpoints = ['/auth/login', '/auth/register', '/auth/refreshtoken'];
+  const authEndpoints = ['/auth/', '/realms/', 'keycloak', '/protocol/openid-connect'];
   return authEndpoints.some(endpoint => url.includes(endpoint));
-}
-
-/**
- * Ajoute le token à la requête
- */
-function addTokenToRequest(req: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
-  return req.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-}
-
-/**
- * Gère les erreurs 401 en tentant de rafraîchir le token
- */
-function handle401Error(
-  req: HttpRequest<unknown>,
-  next: HttpHandlerFn,
-  authService: AuthService
-): Observable<HttpEvent<unknown>> {
-  if (!isRefreshing) {
-    isRefreshing = true;
-    refreshTokenSubject.next(null);
-
-    const refreshToken = authService.getRefreshToken();
-    
-    if (refreshToken) {
-      return authService.refreshToken().pipe(
-        switchMap(response => {
-          isRefreshing = false;
-          refreshTokenSubject.next(response.accessToken);
-          return next(addTokenToRequest(req, response.accessToken));
-        }),
-        catchError(error => {
-          isRefreshing = false;
-          authService.clearAuth();
-          authService.redirectToLogin();
-          return throwError(() => error);
-        })
-      );
-    } else {
-      isRefreshing = false;
-      authService.clearAuth();
-      authService.redirectToLogin();
-      return throwError(() => new Error('No refresh token available'));
-    }
-  }
-
-  // Attendre que le refresh soit terminé
-  return refreshTokenSubject.pipe(
-    filter(token => token !== null),
-    take(1),
-    switchMap(token => next(addTokenToRequest(req, token!)))
-  );
 }
