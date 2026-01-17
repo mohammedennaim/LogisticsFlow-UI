@@ -1,0 +1,314 @@
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="logo-icon">
+          <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875h.375a3 3 0 116 0h3a.75.75 0 00.75-.75V15z" />
+          <path d="M8.25 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0zM15.75 6.75a.75.75 0 00-.75.75v11.25c0 .087.015.17.042.248a3 3 0 015.958.464c.853-.175 1.522-.935 1.464-1.883a18.659 18.659 0 00-3.732-10.104 1.837 1.837 0 00-1.47-.725H15.75z" />
+          <path d="M19.5 19.5a1.5 1.5 0 10-3 0 1.5 1.5 0 003 0z" />
+        </svg>
+      </div>
+      <div class="header-text">
+        <h2>LogisticsFlow</h2>
+        <span class="role-badge manager">Manager</span>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <span class="nav-section-title">Principal</span>
+        <a class="nav-item" [class.active]="activeMenu() === 'dashboard'" (click)="setActiveMenu('dashboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+          <span>Tableau de bord</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-section-title">Gestion Entrepôt</span>
+        <a class="nav-item" [class.active]="activeMenu() === 'inventory'" (click)="setActiveMenu('inventory')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+          </svg>
+          <span>Inventaire</span>
+          <span class="nav-badge">{{ inventories().length }}</span>
+        </a>
+        <a class="nav-item" [class.active]="activeMenu() === 'movements'" (click)="setActiveMenu('movements')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+          </svg>
+          <span>Mouvements stock</span>
+        </a>
+        <a class="nav-item" [class.active]="activeMenu() === 'products'" (click)="setActiveMenu('products')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          <span>Produits</span>
+          <span class="nav-badge">{{ totalProducts() }}</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <span class="nav-section-title">Opérations</span>
+        <a class="nav-item" [class.active]="activeMenu() === 'shipments'" (click)="setActiveMenu('shipments')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+          </svg>
+          <span>Expéditions</span>
+          @if (pendingShipments() > 0) {
+            <span class="nav-badge warning">{{ pendingShipments() }}</span>
+          }
+        </a>
+        <a class="nav-item" [class.active]="activeMenu() === 'reports'" (click)="setActiveMenu('reports')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          </svg>
+          <span>Rapports stock</span>
+        </a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>Tableau de bord Manager</h1>
+        <p>Gestion de l'entrepôt - Vue d'ensemble</p>
+      </div>
+      <div class="header-right">
+        <button class="refresh-btn" (click)="loadDashboardData()" [disabled]="isLoading()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" [class.spin]="isLoading()">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+        </button>
+        <div class="user-menu">
+          <div class="user-avatar manager">
+            {{ getUserInitials() }}
+          </div>
+          <div class="user-info">
+            <span class="user-name">{{ currentUser()?.name }}</span>
+            <span class="user-role">Gestionnaire Entrepôt</span>
+          </div>
+          <button class="logout-btn" (click)="logout()" title="Déconnexion">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Chargement des données...</p>
+      </div>
+    }
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-content" [class.loading]="isLoading()">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card gradient-blue">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ formatNumber(totalProducts()) }}</span>
+            <span class="stat-label">Produits en stock</span>
+          </div>
+          <div class="stat-details">
+            <span>{{ inventories().length }} lignes d'inventaire</span>
+          </div>
+        </div>
+        
+        <div class="stat-card gradient-orange">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ lowStockItems() }}</span>
+            <span class="stat-label">Alertes stock bas</span>
+          </div>
+          <div class="stat-details">
+            <span class="warning-text">{{ outOfStockItems() }} en rupture</span>
+          </div>
+        </div>
+        
+        <div class="stat-card gradient-green">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ shipmentReport()?.deliveredShipments || 0 }}</span>
+            <span class="stat-label">Expéditions livrées</span>
+          </div>
+          <div class="stat-details">
+            <span>{{ shipmentReport()?.inTransitShipments || 0 }} en transit</span>
+          </div>
+        </div>
+        
+        <div class="stat-card gradient-purple">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ formatCurrency(inventoryReport()?.totalInventoryValue || 0) }}</span>
+            <span class="stat-label">Valeur du stock</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory Report Section -->
+      @if (inventoryReport()) {
+        <div class="report-section">
+          <h3>📦 Rapport d'inventaire</h3>
+          <div class="report-grid">
+            <div class="report-card">
+              <div class="report-icon">🏷️</div>
+              <div class="report-value">{{ inventoryReport()?.totalProducts }}</div>
+              <div class="report-label">Total Produits</div>
+            </div>
+            <div class="report-card">
+              <div class="report-icon">⚠️</div>
+              <div class="report-value">{{ inventoryReport()?.lowStockItems }}</div>
+              <div class="report-label">Stock faible</div>
+            </div>
+            <div class="report-card">
+              <div class="report-icon">🚫</div>
+              <div class="report-value">{{ inventoryReport()?.outOfStockItems }}</div>
+              <div class="report-label">Rupture de stock</div>
+            </div>
+            <div class="report-card">
+              <div class="report-icon">💰</div>
+              <div class="report-value">{{ formatCurrency(inventoryReport()?.totalInventoryValue || 0) }}</div>
+              <div class="report-label">Valeur totale</div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Content Grid -->
+      <div class="content-grid">
+        <!-- Inventory List -->
+        <div class="list-card">
+          <div class="list-header">
+            <h3>📋 Inventaire actuel</h3>
+            <button class="add-btn">+ Ajouter</button>
+          </div>
+          <div class="list-content">
+            @for (inv of inventories().slice(0, 6); track inv.id) {
+              <div class="inventory-item" [class]="getStockLevel(inv)">
+                <div class="inventory-product">
+                  <span class="product-name">{{ inv.productName || 'Produit #' + inv.productId }}</span>
+                  <span class="warehouse-name">{{ inv.warehouseName || 'Entrepôt #' + inv.warehouseId }}</span>
+                </div>
+                <div class="inventory-quantity">
+                  <div class="quantity-bar">
+                    <div class="quantity-fill" [style.width.%]="Math.min((inv.qtyOnHand / (inv.reorderQty || 100)) * 100, 100)"></div>
+                  </div>
+                  <span class="quantity-text">{{ inv.qtyOnHand }} disponible</span>
+                </div>
+                <span class="stock-status">
+                  @switch (getStockLevel(inv)) {
+                    @case ('out-of-stock') { 🚫 Rupture }
+                    @case ('low-stock') { ⚠️ Faible }
+                    @case ('near-full') { 📦 Presque plein }
+                    @default { ✅ Normal }
+                  }
+                </span>
+              </div>
+            } @empty {
+              <div class="empty-state">Aucune donnée d'inventaire</div>
+            }
+          </div>
+        </div>
+
+        <!-- Recent Shipments -->
+        <div class="list-card">
+          <div class="list-header">
+            <h3>🚚 Expéditions récentes</h3>
+            <button class="add-btn">Voir tout</button>
+          </div>
+          <div class="list-content">
+            @for (shipment of shipments().slice(0, 6); track shipment.id) {
+              <div class="shipment-item">
+                <div class="shipment-icon" [class]="getShipmentStatusClass(shipment.status)">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                  </svg>
+                </div>
+                <div class="shipment-info">
+                  <span class="shipment-id">#{{ shipment.trackingNumber || shipment.id }}</span>
+                  <span class="shipment-date">{{ formatDate(shipment.shippedAt) }}</span>
+                </div>
+                <span class="shipment-status" [class]="getShipmentStatusClass(shipment.status)">
+                  {{ getShipmentStatusLabel(shipment.status) }}
+                </span>
+              </div>
+            } @empty {
+              <div class="empty-state">Aucune expédition</div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Movements -->
+      <div class="full-width-card">
+        <div class="list-header">
+          <h3>🔄 Mouvements de stock récents</h3>
+          <button class="add-btn">+ Nouveau mouvement</button>
+        </div>
+        <div class="movements-table-container">
+          <table class="movements-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Entrepôt</th>
+                <th>Date</th>
+                <th>Référence</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (movement of movements().slice(0, 8); track movement.id) {
+                <tr>
+                  <td>
+                    <span class="movement-type" [class]="getMovementTypeClass(movement.movementType)">
+                      {{ getMovementTypeLabel(movement.movementType) }}
+                    </span>
+                  </td>
+                  <td>{{ movement.productName || 'Produit #' + movement.productId }}</td>
+                  <td class="quantity-cell" [class]="movement.movementType === 'IN' ? 'positive' : 'negative'">
+                    {{ movement.movementType === 'IN' ? '+' : '-' }}{{ movement.quantity }}
+                  </td>
+                  <td>{{ movement.warehouseName || 'Entrepôt #' + movement.warehouseId }}</td>
+                  <td>{{ formatDate(movement.createdAt) }}</td>
+                  <td>{{ movement.reason || '-' }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty-cell">Aucun mouvement récent</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
