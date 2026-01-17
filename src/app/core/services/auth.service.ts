@@ -1,14 +1,16 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError, BehaviorSubject } from 'rxjs';
+import { Observable, from, of, throwError } from 'rxjs';
+import { KeycloakService } from 'keycloak-angular';
+import { KeycloakProfile } from 'keycloak-js';
 import {
   LoginRequest,
   RegisterRequest,
   AuthResponse,
-  TokenRefreshRequest,
   TokenRefreshResponse,
-  User
+  User,
+  UserRole
 } from '../models/auth.model';
 import { environment } from '../../../environments/environment';
 
@@ -16,14 +18,11 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = `${environment.apiUrl}/api/auth`;
-  private readonly ACCESS_TOKEN_KEY = 'access_token';
-  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
-  private readonly USER_KEY = 'current_user';
+  private readonly GENERIC_ERROR_MSG = 'Operation handled by Keycloak';
 
   // Signals pour l'état d'authentification
-  private _isAuthenticated = signal<boolean>(this.hasValidToken());
-  private _currentUser = signal<User | null>(this.getStoredUser());
+  private _isAuthenticated = signal<boolean>(false);
+  private _currentUser = signal<User | null>(null);
   private _isLoading = signal<boolean>(false);
 
   // Computed signals exposés
@@ -31,236 +30,183 @@ export class AuthService {
   readonly currentUser = computed(() => this._currentUser());
   readonly isLoading = computed(() => this._isLoading());
 
-  // Subject pour la gestion du refresh token
-  private refreshTokenInProgress = false;
-  private refreshTokenSubject = new BehaviorSubject<string | null>(null);
-
   constructor(
+    private keycloakService: KeycloakService,
     private http: HttpClient,
     private router: Router
-  ) {}
-
-  /**
-   * Connexion utilisateur
-   */
-  login(credentials: LoginRequest): Observable<AuthResponse> {
-    this._isLoading.set(true);
-    
-    return this.http.post<AuthResponse>(`${this.API_URL}/login`, credentials).pipe(
-      tap(response => {
-        this.storeTokens(response);
-        this.decodeAndStoreUser(response.accessToken);
-        this._isAuthenticated.set(true);
-        this._isLoading.set(false);
-      }),
-      catchError(error => {
-        this._isLoading.set(false);
-        return throwError(() => error);
-      })
-    );
+  ) {
+    this.initializeAuthState();
   }
 
   /**
-   * Inscription utilisateur
+   * Initialiser l'état d'authentification au démarrage
+   */
+  private async initializeAuthState(): Promise<void> {
+    try {
+      const isLoggedIn = await this.keycloakService.isLoggedIn();
+      console.log('AuthService: Keycloak isLoggedIn =', isLoggedIn);
+      this._isAuthenticated.set(isLoggedIn);
+
+      if (isLoggedIn) {
+        await this.loadUserProfile();
+      }
+    } catch (error) {
+      console.error('AuthService: Error checking Keycloak status', error);
+      this._isAuthenticated.set(false);
+    }
+  }
+
+  /**
+   * Charger le profil utilisateur depuis Keycloak
+   */
+  private async loadUserProfile(): Promise<void> {
+    try {
+      const profile: KeycloakProfile = await this.keycloakService.loadUserProfile();
+
+      // Mapper KeycloakProfile vers notre modèle User
+      // Note: Keycloak gère les rôles séparément, on utilise isUserInRole pour vérifier
+      // Pour l'interface User, on va essayer de déterminer le rôle principal
+      const role = this.determineMainRole();
+
+      const user: User = {
+        id: profile.id || '',
+        email: profile.email || '',
+        name: `${profile.firstName} ${profile.lastName}`.trim() || profile.username || '',
+        contact: '', // Pas standard dans Keycloak profile
+        role: role as UserRole,
+        active: true // Supposé actif si connecté
+      };
+
+      this._currentUser.set(user);
+      console.log('AuthService: User profile loaded', user);
+    } catch (error) {
+      console.error('AuthService: Error loading user profile', error);
+    }
+  }
+
+  /**
+   * Déterminer le rôle principal pour l'affichage/logique simple
+   */
+  private determineMainRole(): string {
+    if (this.keycloakService.isUserInRole('ADMIN')) return 'ADMIN';
+    if (this.keycloakService.isUserInRole('WAREHOUSE_MANAGER')) return 'WAREHOUSE_MANAGER';
+    if (this.keycloakService.isUserInRole('CLIENT')) return 'CLIENT';
+    return 'USER';
+  }
+
+  /**
+   * Connexion utilisateur (Redirection Keycloak)
+   * On ignore les credentials car on redirige vers la page de login Keycloak
+   */
+  login(credentials?: LoginRequest): Observable<AuthResponse> {
+    // Redirection vers Keycloak
+    this.keycloakService.login();
+    // On retourne un observable vide qui ne sera jamais vraiment consommé car redirection
+    return of({ accessToken: '', refreshToken: '' });
+  }
+
+  /**
+   * Inscription utilisateur (Redirection Keycloak Register)
    */
   register(userData: RegisterRequest): Observable<User> {
-    this._isLoading.set(true);
-    
-    return this.http.post<User>(`${this.API_URL}/register`, userData).pipe(
-      tap(() => {
-        this._isLoading.set(false);
-      }),
-      catchError(error => {
-        this._isLoading.set(false);
-        return throwError(() => error);
-      })
-    );
+    this.keycloakService.register();
+    return of({} as User);
   }
 
   /**
    * Déconnexion utilisateur
    */
   logout(): Observable<void> {
-    const accessToken = this.getAccessToken();
-    const refreshToken = this.getRefreshToken();
-
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${accessToken}`
-    });
-
-    const body = {
-      token: accessToken,
-      refreshToken: refreshToken
-    };
-
-    return this.http.post<void>(`${this.API_URL}/logout`, body, { headers }).pipe(
-      tap(() => {
-        this.clearAuth();
-      }),
-      catchError(error => {
-        // Nettoyer même en cas d'erreur
-        this.clearAuth();
-        return throwError(() => error);
-      })
-    );
+    // Utiliser from() pour convertir la Promise returned par keycloak.logout() en Observable
+    return from(this.keycloakService.logout(window.location.origin));
   }
 
   /**
-   * Rafraîchir le token
+   * Rafraîchir le token (Géré automatiquement par Keycloak Interceptor)
+   * Cette méthode est gardée pour compatibilité mais ne fait rien
    */
   refreshToken(): Observable<TokenRefreshResponse> {
-    const refreshToken = this.getRefreshToken();
-    
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    const request: TokenRefreshRequest = { refreshToken };
-
-    return this.http.post<TokenRefreshResponse>(`${this.API_URL}/refreshtoken`, request).pipe(
-      tap(response => {
-        this.storeTokens({
-          accessToken: response.accessToken,
-          refreshToken: response.refreshToken
-        });
-      }),
-      catchError(error => {
-        this.clearAuth();
-        return throwError(() => error);
-      })
-    );
+    // Keycloak gère le refresh automatiquement
+    return of({ accessToken: '', refreshToken: '' });
   }
 
-  /**
-   * Stocker les tokens
-   */
-  private storeTokens(tokens: AuthResponse): void {
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, tokens.refreshToken);
-  }
-
-  /**
-   * Décoder le JWT et stocker les infos utilisateur
-   */
-  private decodeAndStoreUser(token: string): void {
-    try {
-      const payload = this.decodeJwt(token);
-      const user: User = {
-        id: payload.sub || payload.userId || '',
-        email: payload.sub || payload.email || '',
-        name: payload.name || payload.preferred_username || '',
-        contact: payload.contact || '',
-        role: payload.role || payload.roles?.[0] || 'CLIENT',
-        active: true
-      };
-      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-      this._currentUser.set(user);
-    } catch (error) {
-      console.error('Error decoding JWT:', error);
-    }
-  }
-
-  /**
-   * Décoder un JWT
-   */
-  private decodeJwt(token: string): any {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  }
-
-  /**
-   * Récupérer l'access token
-   */
   getAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    // Note: this returns a promise strictly speaking, but for compat we might return null
+    // or we should update calling code.
+    // For now, let's try to get it synchronously if possible or return empty string
+    // KeycloakService.getToken() returns Promise<string>
+    // CAUTION: This breaks the synchronous signature. 
+    // However, Keycloak instance object usually has the token property.
+    try {
+      return this.keycloakService.getKeycloakInstance().token || null;
+    } catch {
+      return null;
+    }
   }
 
-  /**
-   * Récupérer le refresh token
-   */
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  /**
-   * Récupérer l'utilisateur stocké
-   */
-  private getStoredUser(): User | null {
-    const userStr = localStorage.getItem(this.USER_KEY);
-    return userStr ? JSON.parse(userStr) : null;
-  }
-
-  /**
-   * Vérifier si le token est valide (non expiré)
-   */
-  private hasValidToken(): boolean {
-    const token = this.getAccessToken();
-    if (!token) return false;
-
     try {
-      const payload = this.decodeJwt(token);
-      const expirationDate = new Date(payload.exp * 1000);
-      return expirationDate > new Date();
+      return this.keycloakService.getKeycloakInstance().refreshToken || null;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  /**
-   * Vérifier si le token est sur le point d'expirer (moins de 5 minutes)
-   */
-  isTokenExpiringSoon(): boolean {
-    const token = this.getAccessToken();
-    if (!token) return true;
-
-    try {
-      const payload = this.decodeJwt(token);
-      const expirationDate = new Date(payload.exp * 1000);
-      const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
-      return expirationDate < fiveMinutesFromNow;
-    } catch {
-      return true;
-    }
-  }
-
-  /**
-   * Nettoyer l'authentification
-   */
-  clearAuth(): void {
-    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    this._isAuthenticated.set(false);
-    this._currentUser.set(null);
-  }
-
-  /**
-   * Rediriger vers la page de connexion
-   */
   redirectToLogin(): void {
-    this.router.navigate(['/auth/login']);
+    this.keycloakService.login();
   }
 
-  /**
-   * Vérifier si l'utilisateur a un rôle spécifique
-   */
   hasRole(role: string): boolean {
-    const user = this._currentUser();
-    return user?.role === role;
+    return this.keycloakService.isUserInRole(role);
+  }
+
+  hasAnyRole(roles: string[]): boolean {
+    return roles.some(role => this.keycloakService.isUserInRole(role));
+  }
+
+  async isLoggedIn(): Promise<boolean> {
+    const logged = await this.keycloakService.isLoggedIn();
+    console.log('AuthService: isLoggedIn check =', logged);
+    if (logged) {
+      console.log('AuthService: User roles =', this.keycloakService.getUserRoles());
+    }
+    return logged;
+  }
+
+  getDashboardRoute(): string {
+    if (this.hasRole('ADMIN')) return '/admin/dashboard';
+    if (this.hasRole('WAREHOUSE_MANAGER')) return '/manager/dashboard';
+    return '/client/dashboard';
+  }
+
+  redirectToDashboard(): void {
+    const route = this.getDashboardRoute();
+    console.log('AuthService: Redirecting to dashboard -', route);
+    this.router.navigate([route]);
   }
 
   /**
-   * Vérifier si l'utilisateur a l'un des rôles spécifiés
+   * Obtenir le profil utilisateur depuis Keycloak
    */
-  hasAnyRole(roles: string[]): boolean {
-    const user = this._currentUser();
-    return user ? roles.includes(user.role) : false;
+  async getUserProfile(): Promise<KeycloakProfile | null> {
+    try {
+      return await this.keycloakService.loadUserProfile();
+    } catch (error) {
+      console.error('AuthService: Error getting user profile', error);
+      return null;
+    }
+  }
+
+  /**
+   * Obtenir les rôles de l'utilisateur
+   */
+  getUserRoles(): string[] {
+    try {
+      return this.keycloakService.getUserRoles();
+    } catch (error) {
+      console.error('AuthService: Error getting user roles', error);
+      return [];
+    }
   }
 }
+
